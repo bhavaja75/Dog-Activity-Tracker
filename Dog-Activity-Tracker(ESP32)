@@ -1,0 +1,143 @@
+#include <Arduino.h> // Include the Arduino core library for ESP32 functionality
+#include <LittleFS.h> // Include the LittleFS library for file system management
+#include <WiFi.h> // Include the WiFi library for network functionality
+#include <time.h> // Include the time library for time management
+#include <TensorFlowLite.h> // Include TensorFlow Lite for ESP32 for activity classification
+#include <BLEDevice.h> // Include BLE library for Bluetooth functionality
+#include <ArduinoOTA.h> // Include ArduinoOTA for over-the-air updates
+// Simulated IMU data structure
+struct IMUdata {
+	float x, y, z; // Accelerometer and gyroscope axes for x, y, and z
+};
+// Simulated QMI8658 class
+class SimulatedQMI8658 {
+	private:
+		bool motionDetected; // Flag to indicate if motion is detected
+		void (*wakeupCallback)(); // Pointer to the motion event callback function
+	public:
+		// Constructor
+		SimulatedQMI8658() : motionDetected(false), wakeupCallback(nullptr) {}
+		// Initialize the simulated sensor
+		bool begin() {
+		Serial.println("Simulated QMI8658 Initialized"); // Print 
+		initialization message to serial
+		return true; // Return true to indicate successful initialization
+}
+// Simulate reading from FIFO
+bool readFromFifo(IMUdata* acc, int accCount, IMUdata* gyr, int gyrCount) 
+{
+// Generate random accelerometer data
+	for (int i = 0; i < accCount; i++) { // Loop through the accelerometer 
+	count
+	acc[i].x = random(-32768, 32767) / 1000.0; // Generate random xaxis data
+	acc[i].y = random(-32768, 32767) / 1000.0; // Generate random yaxis data
+	acc[i].z = random(-32768, 32767) / 1000.0; // Generate random zaxis data
+	}
+	// Generate random gyroscope data
+	for (int i = 0; i < gyrCount; i++)
+	{ 
+		// Loop through the gyroscope count
+		gyr[i].x = random(-32768, 32767) / 100.0; // Generate random xaxis data
+		gyr[i].y = random(-32768, 32767) / 100.0; // Generate random yaxis data
+		gyr[i].z = random(-32768, 32767) / 100.0; // Generate random zaxis data
+	}
+	return true; // Return true to indicate successful data read
+}
+// Configure wake-on-motion settings
+void configWakeOnMotion() {
+	Serial.println("Wake-on-motion configured"); // Print message indicating configuration
+}
+// Set callback for motion events
+void setWakeupMotionEventCallBack(void (*callback)()) {
+	wakeupCallback = callback; // Set the motion event callback function
+}
+// Simulate motion detection
+void simulateMotion() {
+	if (random(100) < 5 && !motionDetected) { 
+		// 5% chance of motion detection
+		motionDetected = true; // Set motion detected
+		if (wakeupCallback) { 
+			// Check if the callback is set
+			wakeupCallback(); // Call the wakeup callback function
+		}
+	} 
+	else {
+		motionDetected = false; // Reset motion detected if no motion is detected
+		}
+	}
+};
+// TimeManager class to handle time management
+class TimeManager {
+	public:
+	// Initialize time manager
+	void begin() {
+		// Setup RTC
+		configTime(0, 0, "pool.ntp.org"); // Set up NTP server for time synchronization
+	}
+	// Get current time
+	time_t getCurrentTime() {
+		return time(nullptr); // Return current time
+	}
+	// Sync time with NTP
+	void syncWithNTP() {
+		struct tm timeinfo; // Structure to hold time information
+		if (!getLocalTime(&timeinfo, 5000)) { 
+			// Attempt to get local time
+			Serial.println("Failed to obtain time"); // Print error message if failed
+		} 
+		else {
+			Serial.print("Current time: "); // Print the current time message
+			Serial.println(asctime(&timeinfo)); // Print the formatted current time
+			}
+		}
+	};
+	// Activity classification based on simulated data
+	String classifyActivity(IMUdata* acc) {
+		// Example thresholds for classification
+		float thresholdWalking = 0.5; // Change these values based on real thresholds
+		float thresholdRunning = 1.0; // Threshold for running
+		if (acc[0].x > thresholdRunning) { 
+			// Check if accelerometer x-axis exceeds running threshold
+			return "Running"; // Return "Running" if condition is met
+			}
+		else if (acc[0].x > thresholdWalking) { 
+			// Check if it exceeds walking threshold
+			return "Walking"; // Return "Walking" if condition is met
+			} 
+		else {
+			return "Resting"; // Return "Resting" if no thresholds are exceeded
+		 }
+	}
+	// Global instances
+	SimulatedQMI8658 imuSensor; // Create an instance of the simulated IMU
+	TimeManager timeManager; // Create an instance of the time manager
+	// Setup function
+	void setup() 
+  {
+		Serial.begin(115200); // Start Serial communication at 115200 baud rate
+		LittleFS.begin(); // Initialize LittleFS for file storage
+		WiFi.begin("your_ssid", "your_password"); // Connect to Wi-Fi using provided credentials
+		while (WiFi.status() != WL_CONNECTED) { 
+			// Wait for Wi-Fi to connect
+			delay(500); // Delay for 500 milliseconds
+			Serial.print("."); // Print dot to indicate connection attempt
+		}
+	timeManager.begin(); // Initialize time management
+	imuSensor.begin(); // Initialize the simulated IMU
+}
+// Loop function
+void loop() 
+{
+// Simulate motion detection
+imuSensor.simulateMotion(); // Call function to simulate motion detection
+// Read simulated accelerometer data
+IMUdata accData[3], gyrData[3]; // Create arrays for accelerometer and gyroscope data
+imuSensor.readFromFifo(accData, 3, gyrData, 3); // Read from FIFO for accelerometer and gyroscope data
+// Classify the activity based on the accelerometer data
+String activity = classifyActivity(accData); // Classify activity based on accelerometer data
+Serial.print("Current Activity: "); // Print current activity message
+Serial.println(activity); // Print the classified activity
+// Sync time with NTP
+timeManager.syncWithNTP(); // Sync time with NTP server
+delay(2000); // Delay for 2 seconds for readability in output
+}
